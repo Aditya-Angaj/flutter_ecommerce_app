@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_analytics/firebase_analytics.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/theme_provider.dart';
@@ -15,19 +13,14 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-      debugPrint('Initializing Firebase...');
+    // Initialize Firebase with platform-specific options
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    
-    // Initialize Analytics
-    FirebaseAnalytics analytics = FirebaseAnalytics.instance;
-    await analytics.setAnalyticsCollectionEnabled(true);
-    
-    debugPrint('Firebase initialized successfully');
+    print('✅ Firebase initialized successfully');
   } catch (e) {
-      debugPrint('Failed to initialize Firebase: ${e.toString()}');
-      throw Exception('Could not initialize Firebase - check your configuration');
+    print('❌ Firebase initialization error: $e');
+    // Continue anyway to show error in UI
   }
 
   runApp(const MyApp());

@@ -1,16 +1,31 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../models/user_model.dart';
 import '../models/product_model.dart';
 import '../models/order_model.dart';
 
 class FirebaseService {
-  final FirebaseFirestore? _firestore = _initFirestore();
+  FirebaseFirestore? _firestore;
 
-  static FirebaseFirestore? _initFirestore() {
+  FirebaseService() {
+    _initFirestore();
+  }
+
+  void _initFirestore() {
     try {
-      return FirebaseFirestore.instance;
-    } catch (e) {
-      return null;
+      // We don't initialize Firebase here because it should be initialized in main.dart
+      if (Firebase.apps.isEmpty) {
+        debugPrint('FirebaseService: Warning - Firebase not initialized');
+        return;
+      }
+      
+      _firestore = FirebaseFirestore.instance;
+      debugPrint('FirebaseService: Firestore initialized successfully');
+    } catch (e, st) {
+      debugPrint('FirebaseService: Failed to initialize Firestore: $e');
+      debugPrint(st.toString());
+      _firestore = null;
     }
   }
 
