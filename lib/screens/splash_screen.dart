@@ -20,11 +20,17 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _initialize() async {
-    // Load products
-    await Provider.of<ProductProvider>(context, listen: false).fetchProducts();
-    
     // Wait a minimum time to show splash
     await Future.delayed(const Duration(seconds: 2));
+
+    if (!mounted) return;
+
+    try {
+      // Load products
+      await Provider.of<ProductProvider>(context, listen: false).fetchProducts();
+    } catch (e) {
+      debugPrint('Error loading products: $e');
+    }
 
     if (!mounted) return;
 
@@ -59,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
+              const Icon(
                 Icons.shopping_bag,
                 size: 100,
                 color: Colors.white,

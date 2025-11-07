@@ -5,12 +5,43 @@ import '../models/cart_item_model.dart';
 import '../services/firebase_service.dart';
 
 class OrderProvider extends ChangeNotifier {
-  final FirebaseService _firebaseService = FirebaseService();
+  FirebaseService? _firebaseService;
+  bool _isFirebaseInitialized = false;
   
   List<OrderModel> _orders = [];
   List<OrderModel> _allOrders = []; // For admin
   bool _isLoading = false;
   String? _errorMessage;
+
+  OrderProvider() {
+    _tryInitializeFirebase();
+  }
+
+  void _tryInitializeFirebase() {
+    try {
+      _firebaseService = FirebaseService();
+      _isFirebaseInitialized = true;
+    } catch (e) {
+      debugPrint('Firebase not initialized: $e');
+      _isFirebaseInitialized = false;
+      // Initialize with dummy data for development
+      _initializeDummyData();
+    }
+  }
+
+  void _initializeDummyData() {
+    final dummyOrder = OrderModel(
+      id: '1',
+      userId: 'test-user',
+      items: [],
+      totalAmount: 0,
+      status: OrderStatus.pending,
+      shippingAddress: '123 Test St',
+      createdAt: DateTime.now(),
+    );
+    _orders = [dummyOrder];
+    _allOrders = [dummyOrder];
+  }
 
   List<OrderModel> get orders => _orders;
   List<OrderModel> get allOrders => _allOrders;
@@ -18,12 +49,20 @@ class OrderProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   Future<void> fetchUserOrders(String userId) async {
+    if (!_isFirebaseInitialized) {
+      // Using dummy data
+      return;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
 
-      _orders = await _firebaseService.getUserOrders(userId);
-      _orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final orders = await _firebaseService?.getUserOrders(userId);
+      if (orders != null) {
+        _orders = orders;
+        _orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
       
       _isLoading = false;
       notifyListeners();
@@ -35,12 +74,20 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<void> fetchAllOrders() async {
+    if (!_isFirebaseInitialized) {
+      // Using dummy data
+      return;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
 
-      _allOrders = await _firebaseService.getAllOrders();
-      _allOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      final allOrders = await _firebaseService?.getAllOrders();
+      if (allOrders != null) {
+        _allOrders = allOrders;
+        _allOrders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
       
       _isLoading = false;
       notifyListeners();
@@ -57,6 +104,12 @@ class OrderProvider extends ChangeNotifier {
     required String shippingAddress,
     String? phoneNumber,
   }) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
@@ -77,7 +130,7 @@ class OrderProvider extends ChangeNotifier {
         createdAt: DateTime.now(),
       );
 
-      await _firebaseService.createOrder(order);
+      await _firebaseService?.createOrder(order);
       _orders.insert(0, order);
       
       _isLoading = false;
@@ -92,6 +145,12 @@ class OrderProvider extends ChangeNotifier {
   }
 
   Future<bool> updateOrderStatus(String orderId, OrderStatus status) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
@@ -103,7 +162,7 @@ class OrderProvider extends ChangeNotifier {
           status: status,
           updatedAt: DateTime.now(),
         );
-        await _firebaseService.updateOrder(updatedOrder);
+        await _firebaseService?.updateOrder(updatedOrder);
         _allOrders[allOrderIndex] = updatedOrder;
       }
 

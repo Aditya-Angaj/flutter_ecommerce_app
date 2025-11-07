@@ -120,7 +120,7 @@ class ProductDetailScreen extends StatelessWidget {
                       children: product.tags.map((tag) {
                         return Chip(
                           label: Text(tag),
-                          backgroundColor: Theme.of(context).colorScheme.surfaceVariant,
+                          backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
                         );
                       }).toList(),
                     ),

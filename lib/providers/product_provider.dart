@@ -3,7 +3,8 @@ import '../models/product_model.dart';
 import '../services/firebase_service.dart';
 
 class ProductProvider extends ChangeNotifier {
-  final FirebaseService _firebaseService = FirebaseService();
+  FirebaseService? _firebaseService;
+  bool _isFirebaseInitialized = false;
   
   List<ProductModel> _products = [];
   List<ProductModel> _filteredProducts = [];
@@ -11,6 +12,50 @@ class ProductProvider extends ChangeNotifier {
   String? _errorMessage;
   String _selectedCategory = 'All';
   String _searchQuery = '';
+
+  ProductProvider() {
+    _tryInitializeFirebase();
+  }
+
+  void _tryInitializeFirebase() {
+    try {
+      _firebaseService = FirebaseService();
+      _isFirebaseInitialized = true;
+    } catch (e) {
+      debugPrint('Firebase not initialized: $e');
+      _isFirebaseInitialized = false;
+      // Initialize with dummy data for development
+      _initializeDummyData();
+    }
+  }
+
+  void _initializeDummyData() {
+    _products = [
+      ProductModel(
+        id: '1',
+        name: 'Sample Product 1',
+        description: 'This is a sample product for development',
+        price: 99.99,
+        imageUrl: 'https://via.placeholder.com/200',
+        category: 'Electronics',
+        stock: 10,
+        createdAt: DateTime.now(),
+        isActive: true,
+      ),
+      ProductModel(
+        id: '2',
+        name: 'Sample Product 2',
+        description: 'Another sample product for development',
+        price: 49.99,
+        imageUrl: 'https://via.placeholder.com/200',
+        category: 'Clothing',
+        stock: 20,
+        createdAt: DateTime.now(),
+        isActive: true,
+      ),
+    ];
+    _applyFilters();
+  }
 
   List<ProductModel> get products => _filteredProducts;
   List<ProductModel> get allProducts => _products;
@@ -23,12 +68,20 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<void> fetchProducts() async {
+    if (!_isFirebaseInitialized) {
+      // Already initialized with dummy data
+      return;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
 
-      _products = await _firebaseService.getProducts();
-      _applyFilters();
+      final products = await _firebaseService?.getProducts();
+      if (products != null) {
+        _products = products;
+        _applyFilters();
+      }
       
       _isLoading = false;
       notifyListeners();
@@ -71,11 +124,17 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<bool> addProduct(ProductModel product) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
 
-      await _firebaseService.addProduct(product);
+      await _firebaseService?.addProduct(product);
       _products.add(product);
       _applyFilters();
       
@@ -91,11 +150,17 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<bool> updateProduct(ProductModel product) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
 
-      await _firebaseService.updateProduct(product);
+      await _firebaseService?.updateProduct(product);
       final index = _products.indexWhere((p) => p.id == product.id);
       if (index != -1) {
         _products[index] = product;
@@ -114,11 +179,17 @@ class ProductProvider extends ChangeNotifier {
   }
 
   Future<bool> deleteProduct(String productId) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       notifyListeners();
 
-      await _firebaseService.deleteProduct(productId);
+      await _firebaseService?.deleteProduct(productId);
       _products.removeWhere((p) => p.id == productId);
       _applyFilters();
       

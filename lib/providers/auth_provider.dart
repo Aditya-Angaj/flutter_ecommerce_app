@@ -4,12 +4,13 @@ import '../models/user_model.dart';
 import '../services/firebase_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseService _firebaseService = FirebaseService();
+  FirebaseAuth? _auth;
+  FirebaseService? _firebaseService;
   
   UserModel? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isFirebaseInitialized = false;
 
   UserModel? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
@@ -18,12 +19,33 @@ class AuthProvider extends ChangeNotifier {
   bool get isAdmin => _currentUser?.isAdmin ?? false;
 
   AuthProvider() {
-    _auth.authStateChanges().listen(_onAuthStateChanged);
+    // For development purposes, we'll treat the app as logged out
+    // when Firebase is not initialized
+    _tryInitializeFirebase();
+  }
+
+  void _tryInitializeFirebase() {
+    try {
+      _auth = FirebaseAuth.instance;
+      _firebaseService = FirebaseService();
+      _auth?.authStateChanges().listen(_onAuthStateChanged);
+      _isFirebaseInitialized = true;
+    } catch (e) {
+      debugPrint('Firebase not initialized: $e');
+      _isFirebaseInitialized = false;
+      _currentUser = null;
+    }
   }
 
   Future<void> _onAuthStateChanged(User? firebaseUser) async {
+    if (!_isFirebaseInitialized) {
+      _currentUser = null;
+      notifyListeners();
+      return;
+    }
+
     if (firebaseUser != null) {
-      _currentUser = await _firebaseService.getUser(firebaseUser.uid);
+      _currentUser = await _firebaseService?.getUser(firebaseUser.uid);
       notifyListeners();
     } else {
       _currentUser = null;
@@ -32,18 +54,24 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> signIn(String email, String password) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      final userCredential = await _auth.signInWithEmailAndPassword(
+      final userCredential = await _auth?.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (userCredential.user != null) {
-        _currentUser = await _firebaseService.getUser(userCredential.user!.uid);
+      if (userCredential?.user != null) {
+        _currentUser = await _firebaseService?.getUser(userCredential!.user!.uid);
         _isLoading = false;
         notifyListeners();
         return true;
@@ -66,26 +94,32 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> signUp(String email, String password, String name) async {
+    if (!_isFirebaseInitialized) {
+      _errorMessage = 'Firebase is not initialized';
+      notifyListeners();
+      return false;
+    }
+
     try {
       _isLoading = true;
       _errorMessage = null;
       notifyListeners();
 
-      final userCredential = await _auth.createUserWithEmailAndPassword(
+      final userCredential = await _auth?.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
-      if (userCredential.user != null) {
+      if (userCredential?.user != null) {
         final user = UserModel(
-          id: userCredential.user!.uid,
+          id: userCredential!.user!.uid,
           email: email,
           name: name,
           isAdmin: false,
           createdAt: DateTime.now(),
         );
 
-        await _firebaseService.createUser(user);
+        await _firebaseService?.createUser(user);
         _currentUser = user;
         _isLoading = false;
         notifyListeners();
@@ -109,13 +143,15 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> signOut() async {
-    await _auth.signOut();
+    if (_isFirebaseInitialized) {
+      await _auth?.signOut();
+    }
     _currentUser = null;
     notifyListeners();
   }
 
   Future<bool> updateProfile({String? name, String? phoneNumber, String? address}) async {
-    if (_currentUser == null) return false;
+    if (!_isFirebaseInitialized || _currentUser == null) return false;
 
     try {
       _isLoading = true;
@@ -127,7 +163,7 @@ class AuthProvider extends ChangeNotifier {
         address: address ?? _currentUser!.address,
       );
 
-      await _firebaseService.updateUser(updatedUser);
+      await _firebaseService?.updateUser(updatedUser);
       _currentUser = updatedUser;
       _isLoading = false;
       notifyListeners();
